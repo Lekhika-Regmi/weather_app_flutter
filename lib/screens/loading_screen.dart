@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart';
+
+import '../services/location.dart';
 
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});
@@ -8,46 +12,47 @@ class LoadingScreen extends StatefulWidget {
   _LoadingScreenState createState() => _LoadingScreenState();
 }
 
-class _LoadingScreenState extends State<LoadingScreen> {
-  Future<void> getLocation() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        // user still denied — show a message, or fallback
-        return;
-      }
-    }
-    if (permission == LocationPermission.deniedForever) {
-      // permissions are permanently denied — open app settings
-      await Geolocator.openAppSettings();
+void getLocation() async {
+  Location location = Location();
+  await location.getCurrentLocation();
+  print(location.latitude);
+  print(location.longitude);
+}
+
+void getData() async {
+  Response response = await get(
+    Uri.parse(
+      'https://api.openweathermap.org/geo/1.0/reverse?lat=51.5098&lon=-0.1180&limit=5&appid=b1b15e88fa797225412429c1c50c122a1',
+    ),
+  );
+  if (response.statusCode == 200) {
+    String data = response.body;
+    //decoding into a list
+    final List<dynamic> results = jsonDecode(data);
+    if (results.isEmpty) {
+      print('No locations found');
       return;
     }
-
-    // now we have permission!
-    final LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 100,
-    );
-
-    Position position = await Geolocator.getCurrentPosition(
-      locationSettings: locationSettings,
-    );
-    print(position);
+    for (var item in results) {
+      final map = item as Map<String, dynamic>;
+      print(map['local_names']['ru']); // London, then Londonderry
+    }
+  } else {
+    print(response.statusCode);
   }
+}
+
+class _LoadingScreenState extends State<LoadingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    getLocation();
+  }
+  //147
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () {
-            //Get the current location
-            getLocation();
-          },
-          child: Text('Get Location'),
-        ),
-      ),
-    );
+    getData();
+    return Scaffold();
   }
 }
